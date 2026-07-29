@@ -11,7 +11,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt yt-dlp==2025.6.9
+RUN pip install --no-cache-dir -r requirements.txt yt-dlp==2026.7.4
 COPY app ./app
 
 RUN useradd --create-home --uid 10001 appuser \
@@ -20,4 +20,4 @@ RUN useradd --create-home --uid 10001 appuser \
 
 USER appuser
 EXPOSE 8080
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.jellyfin_entrypoint:app", "--host", "0.0.0.0", "--port", "8080"]

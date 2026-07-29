@@ -36,7 +36,7 @@ Enable it with a values file or command-line settings:
 
 ```sh
 helm upgrade --install video-downloader ./chart/video-downloader \
-  --set image.tag=2026.7.4-jellyfin \
+  --set image.tag=2026.7.4 \
   --set jellyfin.enabled=true \
   --set jellyfin.url=http://192.168.4.211:8096 \
   --set jellyfin.existingSecret=jellyfin-api

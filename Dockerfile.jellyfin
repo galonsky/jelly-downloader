@@ -1,4 +1,0 @@
-# Builds an optional Jellyfin-refresh variant on the current downloader image.
-FROM video-downloader:2026.7.4
-COPY app/jellyfin_entrypoint.py /app/app/jellyfin_entrypoint.py
-CMD ["uvicorn", "app.jellyfin_entrypoint:app", "--host", "0.0.0.0", "--port", "8080"]

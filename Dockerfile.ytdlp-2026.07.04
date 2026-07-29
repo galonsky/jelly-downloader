@@ -1,5 +1,0 @@
-# Temporary derived image used to roll the deployed release to the current yt-dlp version.
-FROM video-downloader:local-check
-USER root
-RUN pip install --no-cache-dir --upgrade yt-dlp==2026.7.4
-USER appuser

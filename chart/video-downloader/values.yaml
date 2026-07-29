@@ -1,6 +1,6 @@
 image:
   repository: video-downloader
-  tag: latest
+  tag: 2026.7.4
   pullPolicy: IfNotPresent
 
 hostPort: 8080
