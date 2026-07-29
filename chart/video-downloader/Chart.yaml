@@ -1,0 +1,6 @@
+apiVersion: v2
+name: video-downloader
+description: A local web UI and queue for yt-dlp downloads
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

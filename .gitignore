@@ -1,0 +1,27 @@
+# Python bytecode, test, and coverage artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local Python environments and package build output
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Local application state and secrets
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/

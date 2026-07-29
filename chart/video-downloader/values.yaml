@@ -1,0 +1,41 @@
+image:
+  repository: video-downloader
+  tag: latest
+  pullPolicy: IfNotPresent
+
+hostPort: 8080
+service:
+  port: 8080
+
+downloadDirectory:
+  path: /srv/media/videos
+  hostPath: /srv/media/videos
+stateDirectory:
+  hostPath: /var/lib/video-downloader
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+securityContext:
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+# Use this only when your cluster storage is already shared with Jellyfin.
+existingDownloadClaim: ""
+
+jellyfin:
+  # Enable a debounced POST /Library/Refresh after completed downloads.
+  enabled: false
+  # From inside the cluster, use the Kubernetes node address or a Jellyfin Service.
+  url: ""
+  # Existing Secret containing the API key. Leave empty to disable injection.
+  existingSecret: ""
+  # Key in existingSecret; the default matches `kubectl create secret ... --from-literal=JELLYFIN_API_KEY=...`.
+  apiKeySecretKey: JELLYFIN_API_KEY
+  minRefreshIntervalSeconds: 60
