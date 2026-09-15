@@ -41,3 +41,21 @@ helm upgrade --install video-downloader ./chart/video-downloader \
   --set jellyfin.url=http://192.168.4.211:8096 \
   --set jellyfin.existingSecret=jellyfin-api
 ```
+
+## Updating yt-dlp and Deno
+
+The image pins both `yt-dlp` and Deno. Check for newer releases without changing files:
+
+```sh
+./scripts/update_dependencies.py --dry-run
+```
+
+Apply the update after reviewing the generated diff:
+
+```sh
+./scripts/update_dependencies.py
+pytest
+docker build -t video-downloader:latest .
+```
+
+The script updates the Dockerfile, the Helm image tag, and this example together. It also refreshes Deno's published SHA-256 checksum. Run it from cron or another scheduler when you want unattended checks; use `--check` for a non-writing status check.
