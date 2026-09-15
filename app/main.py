@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 import uuid
+from collections import deque
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -169,7 +170,7 @@ def run_download(job: dict) -> None:
     job_id = job["id"]
     template = str(DOWNLOAD_DIR / "%(title).200B [%(id)s].%(ext)s")
     command = [
-        "yt-dlp", "--no-playlist", "--newline", "--progress",
+        "yt-dlp", "--js-runtimes", "deno", "--no-playlist", "--newline", "--progress",
         "--progress-template", "download:%(progress._percent_str)s",
         "--print", "after_move:filepath:%(filepath)s",
         "--restrict-filenames", "--windows-filenames",
@@ -178,10 +179,13 @@ def run_download(job: dict) -> None:
     ]
     output_path: Path | None = None
     title: str | None = None
+    recent_output = deque(maxlen=30)
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     assert process.stdout is not None
     for line in process.stdout:
         line = line.strip()
+        if line:
+            recent_output.append(line)
         progress_match = PROGRESS_RE.match(line)
         if progress_match:
             update_job(job_id, progress=min(100.0, float(progress_match.group(1))))
@@ -189,8 +193,10 @@ def run_download(job: dict) -> None:
             output_path = Path(line.removeprefix("filepath:"))
         elif line.startswith("[download] Destination:"):
             title = Path(line.split(":", 1)[1].strip()).stem
-    if process.wait() != 0:
-        raise RuntimeError("yt-dlp could not download this video")
+    return_code = process.wait()
+    if return_code != 0:
+        details = "\n".join(recent_output)
+        raise RuntimeError(f"yt-dlp failed (exit code {return_code}): {details}"[:2000])
     if not output_path or not output_path.exists():
         raise RuntimeError("yt-dlp completed without producing a video file")
     final_path = ensure_jellyfin_compatibility(output_path)

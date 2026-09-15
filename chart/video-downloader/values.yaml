@@ -1,6 +1,6 @@
 image:
   repository: video-downloader
-  tag: 2026.7.4
+  tag: 2026.8.19
   pullPolicy: IfNotPresent
 
 hostPort: 8080
