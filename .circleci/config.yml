@@ -1,0 +1,39 @@
+version: 2.1
+
+jobs:
+  build-and-publish:
+    docker:
+      - image: cimg/base:current
+    environment:
+      IMAGE_REPOSITORY: galonsky/video-downloader
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build and publish image
+          command: |
+            set -euo pipefail
+
+            : "${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME in CircleCI project environment variables}"
+            : "${DOCKERHUB_TOKEN:?Set DOCKERHUB_TOKEN in CircleCI project environment variables}"
+
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login \
+              --username "$DOCKERHUB_USERNAME" \
+              --password-stdin
+
+            SHA_TAG="sha-${CIRCLE_SHA1}"
+            docker build --pull \
+              --tag "${IMAGE_REPOSITORY}:${SHA_TAG}" \
+              --tag "${IMAGE_REPOSITORY}:latest" \
+              .
+
+            docker push "${IMAGE_REPOSITORY}:${SHA_TAG}"
+            docker push "${IMAGE_REPOSITORY}:latest"
+
+workflows:
+  publish-on-main:
+    jobs:
+      - build-and-publish:
+          filters:
+            branches:
+              only: main
