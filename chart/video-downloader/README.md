@@ -59,3 +59,21 @@ docker build -t video-downloader:latest .
 ```
 
 The script updates the Dockerfile, the Helm image tag, and this example together. It also refreshes Deno's published SHA-256 checksum. Run it from cron or another scheduler when you want unattended checks; use `--check` for a non-writing status check.
+
+## CircleCI image publishing
+
+The CircleCI workflow builds the Dockerfile for commits to `main` and pushes
+these tags to `galonsky/video-downloader`:
+
+- `sha-<full-commit-sha>` is immutable and is the tag Kargo should promote.
+- `latest` is a convenience tag; deployments should use the commit tag.
+
+Create the `galonsky/video-downloader` repository on Docker Hub, then add these
+project environment variables in CircleCI:
+
+- `DOCKERHUB_USERNAME`: the Docker Hub account used to publish the image.
+- `DOCKERHUB_TOKEN`: a Docker Hub access token with Repo Read & Write
+  permission. Do not put the token in this repository.
+
+The publisher only runs on `main`; it does not need access to the cluster or
+tailnet.
