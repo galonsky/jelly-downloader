@@ -32,15 +32,21 @@ kubectl create secret generic jellyfin-api \
   --from-literal=JELLYFIN_API_KEY='YOUR_KEY'
 ```
 
-Enable it with a values file or command-line settings:
+Enable it with a values file or command-line settings. The URL can be supplied
+directly, or read from an existing ConfigMap (useful for cluster-specific
+endpoints that should not be stored in this repository):
 
 ```sh
 helm upgrade --install video-downloader ./chart/video-downloader \
   --set image.tag=2026.8.19 \
   --set jellyfin.enabled=true \
-  --set jellyfin.url=http://192.168.4.211:8096 \
+  --set jellyfin.url=http://jellyfin.default.svc.cluster.local:8096 \
   --set jellyfin.existingSecret=jellyfin-api
 ```
+
+For a ConfigMap named `video-downloader-config` with a `JELLYFIN_URL` key, set
+`jellyfin.existingUrlConfigMap=video-downloader-config`. When configured, the
+ConfigMap value takes precedence over `jellyfin.url`.
 
 ## Updating yt-dlp and Deno
 

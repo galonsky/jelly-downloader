@@ -1,0 +1,39 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: video-downloader
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: video-downloader
+      sources:
+        direct: true
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: video-downloader
+                namespace: argocd
+                sources:
+                  - repoURL: https://github.com/galonsky/jelly-downloader.git
+                    desiredRevision: ${{ commitFrom("https://github.com/galonsky/jelly-downloader.git", warehouse("video-downloader")).ID }}
+                    updateTargetRevision: true
+                    helm:
+                      images:
+                        - key: image.repository
+                          value: docker.io/galonsky/video-downloader
+                        - key: image.tag
+                          value: ${{ imageFrom("docker.io/galonsky/video-downloader", warehouse("video-downloader")).Tag }}
+        - uses: argocd-wait
+          config:
+            apps:
+              - name: video-downloader
+                namespace: argocd
+                waitFor:
+                  - health
+                  - sync
+                  - operation

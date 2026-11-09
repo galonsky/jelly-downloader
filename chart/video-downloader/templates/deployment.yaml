@@ -38,7 +38,14 @@ spec:
             - name: JELLYFIN_REFRESH_ON_COMPLETE
               value: {{ .Values.jellyfin.enabled | quote }}
             - name: JELLYFIN_URL
+{{- if .Values.jellyfin.existingUrlConfigMap }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.jellyfin.existingUrlConfigMap | quote }}
+                  key: {{ .Values.jellyfin.urlConfigMapKey | quote }}
+{{- else }}
               value: {{ .Values.jellyfin.url | quote }}
+{{- end }}
             - name: JELLYFIN_MIN_REFRESH_INTERVAL_SECONDS
               value: {{ .Values.jellyfin.minRefreshIntervalSeconds | quote }}
 {{- if .Values.jellyfin.existingSecret }}

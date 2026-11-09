@@ -1,0 +1,23 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: video-downloader
+  namespace: video-downloader
+spec:
+  interval: 5m
+  freightCreationPolicy: Automatic
+  subscriptions:
+    - git:
+        repoURL: https://github.com/galonsky/jelly-downloader.git
+        branch: main
+        discoveryLimit: 20
+    - image:
+        repoURL: docker.io/galonsky/video-downloader
+        imageSelectionStrategy: NewestBuild
+        allowTagsRegexes:
+          - '^sha-[0-9a-f]{40}$'
+        discoveryLimit: 20
+        cacheByTag: true
+  freightCreationCriteria:
+    expression: |
+      imageFrom('docker.io/galonsky/video-downloader').Tag == 'sha-' + commitFrom('https://github.com/galonsky/jelly-downloader.git').ID

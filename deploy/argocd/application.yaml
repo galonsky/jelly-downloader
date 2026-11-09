@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: video-downloader
+  namespace: argocd
+  annotations:
+    kargo.akuity.io/authorized-stage: video-downloader:prod
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/galonsky/jelly-downloader.git
+    path: chart/video-downloader
+    targetRevision: 3305160e4607609c539db4a9b7a4aec21174ca84
+    helm:
+      parameters:
+        - name: image.repository
+          value: docker.io/galonsky/video-downloader
+        - name: image.tag
+          value: sha-3305160e4607609c539db4a9b7a4aec21174ca84
+        - name: jellyfin.enabled
+          value: "true"
+        - name: jellyfin.existingSecret
+          value: jellyfin-api
+        - name: jellyfin.minRefreshIntervalSeconds
+          value: "60"
+        - name: jellyfin.existingUrlConfigMap
+          value: video-downloader-config
+        - name: securityContext.fsGroup
+          value: "1004"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

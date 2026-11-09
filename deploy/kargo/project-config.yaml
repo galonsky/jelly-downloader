@@ -1,0 +1,10 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: video-downloader
+  namespace: video-downloader
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: prod
+      autoPromotionEnabled: false

@@ -34,6 +34,9 @@ jellyfin:
   enabled: false
   # From inside the cluster, use the Kubernetes node address or a Jellyfin Service.
   url: ""
+  # Existing ConfigMap containing JELLYFIN_URL. When set, this takes precedence over url.
+  existingUrlConfigMap: ""
+  urlConfigMapKey: JELLYFIN_URL
   # Existing Secret containing the API key. Leave empty to disable injection.
   existingSecret: ""
   # Key in existingSecret; the default matches `kubectl create secret ... --from-literal=JELLYFIN_API_KEY=...`.
