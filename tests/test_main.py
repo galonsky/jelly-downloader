@@ -1,4 +1,5 @@
 import ipaddress
+import sqlite3
 
 import pytest
 
@@ -23,9 +24,16 @@ def test_url_scheme_is_checked():
 class FakeProcess:
     def __init__(self, lines, return_code=0):
         self.stdout = iter(lines)
+        self.stderr = iter([])
         self.return_code = return_code
+        self.killed = False
+        self.waited = False
+
+    def kill(self):
+        self.killed = True
 
     def wait(self):
+        self.waited = True
         return self.return_code
 
 
@@ -112,3 +120,47 @@ def test_initialize_database_migrates_old_schema(tmp_path, monkeypatch):
     assert job["status"] == "queued"
     assert job["progress"] == 0
     assert job["phase"] is None and job["progress_indeterminate"] == 0
+
+
+def test_run_download_stops_yt_dlp_when_progress_write_fails(isolated_app, monkeypatch):
+    main = isolated_app
+    process = FakeProcess(['PROGRESS\t"18"\t{"downloaded_bytes": 1, "total_bytes": 2}\n'] * 3)
+    monkeypatch.setattr(main.subprocess, "Popen", lambda *args, **kwargs: process)
+    calls = []
+
+    def locked(job_id, **fields):
+        calls.append(fields)
+        if len(calls) > 1:  # The initial reset succeeds; the first progress write fails.
+            raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(main, "update_job", locked)
+
+    with pytest.raises(sqlite3.OperationalError):
+        main.run_download({"id": "job", "url": "https://example.com/v"})
+    assert process.killed and process.waited
+
+
+def test_conversion_stops_ffmpeg_and_removes_partial_file_when_callback_fails(tmp_path, monkeypatch):
+    from app import main
+
+    source = tmp_path / "clip.webm"
+    source.write_bytes(b"video")
+    partial = tmp_path / "clip.jellyfin.partial.mp4"
+    process = FakeProcess(["out_time_us=1000000\n", "out_time_us=2000000\n"])
+
+    def start_ffmpeg(*args, **kwargs):
+        partial.write_bytes(b"half")  # ffmpeg has begun writing its output.
+        return process
+
+    monkeypatch.setattr(main, "probe_media", lambda path: ("vp9", "opus", 10.0))
+    monkeypatch.setattr(main.subprocess, "Popen", start_ffmpeg)
+
+    def failing_progress(percent):
+        if percent:
+            raise sqlite3.OperationalError("database is locked")
+
+    with pytest.raises(sqlite3.OperationalError):
+        main.ensure_jellyfin_compatibility(source, on_progress=failing_progress)
+    assert process.killed and process.waited
+    assert not partial.exists()
+    assert source.exists()

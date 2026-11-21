@@ -169,6 +169,17 @@ def probe_media(path: Path) -> tuple[str | None, str | None, float | None]:
     return codecs.get("video"), codecs.get("audio"), duration
 
 
+@contextmanager
+def stopped_on_error(process: subprocess.Popen):
+    """Kill and reap a child process if reading its output raises, so it never outlives the job."""
+    try:
+        yield
+    except BaseException:
+        process.kill()
+        process.wait()
+        raise
+
+
 def ensure_jellyfin_compatibility(path: Path, on_progress: Callable[[float | None], None] | None = None) -> Path:
     video_codec, audio_codec, duration = probe_media(path)
     if path.suffix.lower() == ".mp4" and video_codec == "h264" and audio_codec == "aac":
@@ -187,10 +198,15 @@ def ensure_jellyfin_compatibility(path: Path, on_progress: Callable[[float | Non
     stderr = process.stderr
     reader = threading.Thread(target=lambda: errors.extend(line.rstrip() for line in stderr), daemon=True)
     reader.start()
-    for line in process.stdout:
-        percent = progress_parsing.ffmpeg_percent(line, duration)
-        if percent is not None and on_progress:
-            on_progress(percent)
+    try:
+        with stopped_on_error(process):
+            for line in process.stdout:
+                percent = progress_parsing.ffmpeg_percent(line, duration)
+                if percent is not None and on_progress:
+                    on_progress(percent)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
     return_code = process.wait()
     reader.join(timeout=5)
     if return_code != 0:
@@ -245,27 +261,28 @@ def run_download(job: dict) -> None:
     writer.write(force=True)
     process = subprocess.Popen(yt_dlp_command(job["url"]), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     assert process.stdout is not None
-    for raw_line in process.stdout:
-        line = raw_line.rstrip("\r\n")
-        event = progress_parsing.parse_line(line)
-        if event is None:
-            if line.strip():
-                recent_output.append(line.strip())
-            continue
-        if event.kind == progress_parsing.PROGRESS:
-            tracker.download(event.format_id, event.data)
-            if event.data.get("status") == "finished" and tracker.progress >= 99.9:
-                # All files are on disk; yt-dlp now merges and fixes them up.
-                tracker.set_phase(progress_parsing.PROCESSING)
-            writer.write()
-        elif event.kind == progress_parsing.PLAN:
-            tracker.plan(event.value)
-        elif event.kind == progress_parsing.TITLE:
-            title = event.value or title
-            if title:
-                update_job(job_id, title=title)
-        elif event.kind == progress_parsing.FILEPATH:
-            output_path = Path(event.value)
+    with stopped_on_error(process):
+        for raw_line in process.stdout:
+            line = raw_line.rstrip("\r\n")
+            event = progress_parsing.parse_line(line)
+            if event is None:
+                if line.strip():
+                    recent_output.append(line.strip())
+                continue
+            if event.kind == progress_parsing.PROGRESS:
+                tracker.download(event.format_id, event.data)
+                if event.data.get("status") == "finished" and tracker.progress >= 99.9:
+                    # All files are on disk; yt-dlp now merges and fixes them up.
+                    tracker.set_phase(progress_parsing.PROCESSING)
+                writer.write()
+            elif event.kind == progress_parsing.PLAN:
+                tracker.plan(event.value)
+            elif event.kind == progress_parsing.TITLE:
+                title = event.value or title
+                if title:
+                    update_job(job_id, title=title)
+            elif event.kind == progress_parsing.FILEPATH:
+                output_path = Path(event.value)
     return_code = process.wait()
     if return_code != 0:
         details = "\n".join(recent_output)
