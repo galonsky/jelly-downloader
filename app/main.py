@@ -353,8 +353,9 @@ def create_download(request: DownloadRequest) -> dict:
 
 HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Downloader</title>
-<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#172033}form{display:flex;gap:.5rem}input{flex:1;padding:.7rem;font:inherit}button{padding:.7rem 1rem;font:inherit}table{width:100%;border-collapse:collapse;margin-top:2rem}th,td{text-align:left;padding:.6rem;border-bottom:1px solid #ddd;vertical-align:top}td{overflow-wrap:anywhere}.error{color:#b42318}.status{font-weight:600}.progress{min-width:12rem}.progress progress{width:100%;height:.8rem}.progress span{display:block;font-size:.85rem;color:#475467;margin-top:.2rem}</style>
-</head><body><h1>Video Downloader</h1><form id="download-form"><input id="url" type="url" required aria-label="Video URL" placeholder="https://example.com/video"><button>Download</button></form><p id="message" role="status"></p><table><thead><tr><th>Status</th><th>Video</th><th>Progress</th><th>Result</th></tr></thead><tbody id="jobs"></tbody></table>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#172033}form{display:flex;gap:.5rem}input{flex:1;padding:.7rem;font:inherit}button{padding:.7rem 1rem;font:inherit}table{width:100%;border-collapse:collapse;margin-top:2rem}th,td{text-align:left;padding:.6rem;border-bottom:1px solid #ddd;vertical-align:top}.error{color:#b42318}.status{font-weight:600}td{overflow-wrap:anywhere}.progress{min-width:12rem}.progress progress{width:100%;height:.8rem}.progress .meter span{display:block;font-size:.85rem;color:#475467;margin-top:.2rem}
+@media(max-width:600px){body{margin:1rem auto}h1{font-size:1.5rem}form{flex-direction:column}input,button{width:100%;box-sizing:border-box;min-height:2.75rem}input{font-size:1rem}table{margin-top:1rem}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}tr{display:block;border:1px solid #ddd;border-radius:.5rem;margin-bottom:.75rem;padding:.25rem .5rem}td{display:flex;gap:.75rem;justify-content:space-between;border-bottom:0;padding:.35rem 0}td::before{content:attr(data-label);font-weight:600;color:#5b6475;flex:0 0 5rem}td>span{flex:1;text-align:right}.progress{min-width:0}.progress .meter{flex:1;min-width:0}.progress .meter span{text-align:right}}</style>
+</head><body><h1>Video Downloader</h1><form id="download-form"><input id="url" type="url" required aria-label="Video URL" placeholder="https://example.com/video"><button>Download</button></form><p id="message" role="status"></p><table role="table"><thead role="rowgroup"><tr role="row"><th role="columnheader">Status</th><th role="columnheader">Video</th><th role="columnheader">Progress</th><th role="columnheader">Result</th></tr></thead><tbody id="jobs" role="rowgroup"></tbody></table>
 <script>
 const form=document.querySelector('#download-form'), message=document.querySelector('#message'), jobs=document.querySelector('#jobs');
 const PHASES={downloading:'Downloading',processing:'Processing',converting:'Converting for Jellyfin'};
@@ -370,20 +371,23 @@ function progressText(job){
   if(job.eta!=null&&job.phase==='downloading')parts.push(`ETA ${duration(job.eta)}`);
   return parts.join(' · ');
 }
+function cell(label){const td=document.createElement('td');td.setAttribute('role','cell');td.dataset.label=label;return td}
+function textCell(label){const td=cell(label);td.append(document.createElement('span'));return td}
 function row(job){
   let tr=jobs.querySelector(`tr[data-id="${job.id}"]`);
-  if(!tr){tr=document.createElement('tr');tr.dataset.id=job.id;
-    const td=()=>document.createElement('td');const progress=td();progress.className='progress';
-    progress.append(document.createElement('progress'),document.createElement('span'));
-    tr.append(td(),td(),progress,td());tr.cells[0].className='status'}
+  if(!tr){tr=document.createElement('tr');tr.dataset.id=job.id;tr.setAttribute('role','row');
+    const progress=cell('Progress');progress.className='progress';
+    const meter=document.createElement('div');meter.className='meter';
+    meter.append(document.createElement('progress'),document.createElement('span'));progress.append(meter);
+    tr.append(textCell('Status'),textCell('Video'),progress,textCell('Result'));tr.cells[0].className='status'}
   const [status,video,progress,result]=tr.cells;
-  status.textContent=job.status;
-  video.textContent=job.title||job.url;
-  const bar=progress.querySelector('progress'),label=progress.querySelector('span'),text=progressText(job);
+  status.firstChild.textContent=job.status;
+  video.firstChild.textContent=job.title||job.url;
+  const bar=progress.querySelector('progress'),label=progress.querySelector('.meter span'),text=progressText(job);
   const indeterminate=job.status==='running'&&(job.progress_indeterminate||!job.phase);
   if(indeterminate)bar.removeAttribute('value');else bar.value=job.status==='completed'?100:(job.status==='queued'?0:job.progress||0);
   bar.max=100;bar.setAttribute('aria-label',`${job.title||job.url}: ${text}`);label.textContent=text;
-  result.textContent=job.error||job.output_filename||'—';result.className=job.error?'error':'';
+  result.firstChild.textContent=job.error||job.output_filename||'—';result.className=job.error?'error':'';
   return tr;
 }
 async function refresh(){const response=await fetch('/api/downloads');if(!response.ok)return;const items=await response.json();const rows=items.map(row);jobs.replaceChildren(...rows)}
